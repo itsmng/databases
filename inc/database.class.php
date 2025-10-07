@@ -314,132 +314,110 @@ class PluginDatabasesDatabase extends CommonDBTM {
     *
     * @return bool
     */
-   function showForm($ID, $options = []) {
-
-      $this->initForm($ID, $options);
-      $this->showFormHeader($options);
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('Name') . "</td>";
-      echo "<td>";
-      Html::autocompletionTextField($this, "name");
-      echo "</td>";
-
-      echo "<td>" . PluginDatabasesDatabaseCategory::getTypeName(1) . "</td>";
-      echo "<td>";
-      Dropdown::show('PluginDatabasesDatabaseCategory', ['name'   => "plugin_databases_databasecategories_id",
-                                                         'value'  => $this->fields["plugin_databases_databasecategories_id"],
-                                                         'entity' => $this->fields["entities_id"]]);
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('Location') . "</td>";
-      echo "<td>";
-      Location::dropdown(['value'  => $this->fields["locations_id"],
-                          'entity' => $this->fields["entities_id"]]);
-      echo "</td>";
-
-      echo "<td>" . PluginDatabasesServerType::getTypeName(1) . "</td>";
-      echo "<td>";
-      Dropdown::show('PluginDatabasesServerType', ['name'  => "plugin_databases_servertypes_id",
-                                                   'value' => $this->fields["plugin_databases_servertypes_id"]]);
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('Technician in charge of the hardware') . "</td><td>";
-      User::dropdown(['name'   => "users_id",
-                      'value'  => $this->fields["users_id"],
-                      'entity' => $this->fields["entities_id"],
-                      'right'  => 'interface']);
-      echo "</td>";
-
-      echo "<td>" . PluginDatabasesDatabaseType::getTypeName(1) . "</td>";
-      echo "<td>";
-      Dropdown::show('PluginDatabasesDatabaseType', ['name'   => "plugin_databases_databasetypes_id",
-                                                     'value'  => $this->fields["plugin_databases_databasetypes_id"],
-                                                     'entity' => $this->fields["entities_id"]]);
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('Group in charge of the hardware') . "</td><td>";
-      Group::dropdown(['name'      => 'groups_id',
-                       'value'     => $this->fields['groups_id'],
-                       'entity'    => $this->fields['entities_id'],
-                       'condition' => ['is_assign' => 1]]);
-      echo "</td>";
-
-      echo "<td>" . __('Editor', 'databases') . "</td>";
-      echo "<td>";
-      Dropdown::show('Manufacturer', ['name'   => "manufacturers_id",
-                                      'value'  => $this->fields["manufacturers_id"],
-                                      'entity' => $this->fields["entities_id"]]);
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('Supplier') . "</td>";
-      echo "<td>";
-      Dropdown::show('Supplier', ['name'   => "suppliers_id",
-                                  'value'  => $this->fields["suppliers_id"],
-                                  'entity' => $this->fields["entities_id"]]);
-      echo "</td>";
-
-      echo "<td>" . __('Associable to a ticket') . "</td><td>";
-      Dropdown::showYesNo('is_helpdesk_visible', $this->fields['is_helpdesk_visible']);
-      echo "</td>";
-
-      echo "</tr>";
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('URL') . "</td>";
-      echo "<td>";
-      Html::autocompletionTextField($this, "link");
-      echo "&nbsp;<a target='_blank' href='" . $this->getField("link") . "'><i class=\"fas fa-link\"></i></a>";
-      echo "</td>";
-
-      echo "<td></td><td>";
-
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td class='center' colspan = '4'>";
-      printf(__('Last update on %s'), Html::convDateTime($this->fields["date_mod"]));
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td colspan = '4'>";
-      echo "<table cellpadding='2' cellspacing='2' border='0'><tr><td>";
-      echo __('Comments') . "</td></tr>";
-      echo "<tr>";
-      echo "<td class='center'>";
-      echo "<textarea cols='125' rows='8' name='comment'>" . $this->fields["comment"] . "</textarea>";
-      echo "</td></tr></table>";
-      echo "</td>";
-
-      echo "</tr>";
-
-      $this->showFormButtons($options);
-
-      return true;
-   }
+public function showForm($ID, $options = [])
+{
+    $this->initForm($ID, $options);
+    
+    $form = [
+        'action' => $this->getFormURL(),
+        'itemtype' => $this::class,
+        'content' => [
+            'General' => [
+                'visible' => true,
+                'inputs' => [
+                    __('Name') => [
+                        'name' => 'name',
+                        'type' => 'text',
+                        'value' => $this->fields['name'],
+                    ],
+                    PluginDatabasesDatabaseCategory::getTypeName(1) => [
+                        'name' => 'plugin_databases_databasecategories_id',
+                        'type' => 'select',
+                        'itemtype' => PluginDatabasesDatabaseCategory::class,
+                        'value' => $this->fields['plugin_databases_databasecategories_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "PluginDatabasesDatabaseCategory"),
+                    ],
+                    __('Location') => [
+                        'name' => 'locations_id',
+                        'type' => 'select',
+                        'values' => getItemByEntity(Location::class, $this->fields['entities_id']),
+                        'value' => $this->fields['locations_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "Location"),
+                    ],
+                    PluginDatabasesServerType::getTypeName(1) => [
+                        'name' => 'plugin_databases_servertypes_id',
+                        'type' => 'select',
+                        'itemtype' => PluginDatabasesServerType::class,
+                        'value' => $this->fields['plugin_databases_servertypes_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "PluginDatabasesServerType"),
+                    ],
+                    __('Technician in charge of the hardware') => [
+                        'name' => 'users_id',
+                        'type' => 'select',
+                        'values' => getOptionsForUsers('interface', ['entities_id' => $this->fields['entities_id']]),
+                        'value' => $this->fields['users_id'],
+                        'actions' => getItemActionButtons(['info'], "User"),
+                    ],
+                    PluginDatabasesDatabaseType::getTypeName(1) => [
+                        'name' => 'plugin_databases_databasetypes_id',
+                        'type' => 'select',
+                        'itemtype' => PluginDatabasesDatabaseType::class,
+                        'value' => $this->fields['plugin_databases_databasetypes_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "PluginDatabasesDatabaseType"),
+                    ],
+                    __('Group in charge of the hardware') => [
+                        'name' => 'groups_id',
+                        'type' => 'select',
+                        'itemtype' => Group::class,
+                        'conditions' => ['is_assign' => 1],
+                        'value' => $this->fields['groups_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "Group"),
+                    ],
+                    __('Editor', 'databases') => [
+                        'name' => 'manufacturers_id',
+                        'type' => 'select',
+                        'itemtype' => Manufacturer::class,
+                        'value' => $this->fields['manufacturers_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "Manufacturer"),
+                    ],
+                    __('Supplier') => [
+                        'name' => 'suppliers_id',
+                        'type' => 'select',
+                        'itemtype' => Supplier::class,
+                        'value' => $this->fields['suppliers_id'],
+                        'actions' => getItemActionButtons(['info', 'add'], "Supplier"),
+                    ],
+                    __('Associable to a ticket') => [
+                        'name' => 'is_helpdesk_visible',
+                        'type' => 'checkbox',
+                        'value' => $this->fields['is_helpdesk_visible'],
+                    ],
+                    __('URL') => [
+                        'name' => 'link',
+                        'type' => 'text',
+                        'value' => $this->fields['link'],
+                    ],
+                    __('Comments') => [
+                        'name' => 'comment',
+                        'type' => 'textarea',
+                        'value' => $this->fields['comment'],
+                    ],
+                ],
+            ],
+        ]
+    ];
+    
+    $additionnalHtml = '';
+    
+    if (isset($this->fields['date_mod'])) {
+        $additionnalHtml .= '<div class="alert alert-info mt-3">';
+        $additionnalHtml .= sprintf(__('Last update on %s'), Html::convDateTime($this->fields["date_mod"]));
+        $additionnalHtml .= '</div>';
+    }
+    
+    renderTwigForm($form, $additionnalHtml, $this->fields);
+    return true;
+}
 
    /**
     * Make a select box for link database

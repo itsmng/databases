@@ -140,65 +140,68 @@ class PluginDatabasesInstance extends CommonDBChild {
          $plugin_databases_databases_id = $options['plugin_databases_databases_id'];
       }
 
-      if ($ID > 0) {
-         $this->check($ID, READ);
-      } else {
-         $database = new PluginDatabasesDatabase();
-         $database->getFromDB($plugin_databases_databases_id);
-         // Create item
-         $input = ['plugin_databases_databases_id' => $plugin_databases_databases_id,
-                   'entities_id'                   => $database->getEntityID(),
-                   'is_recursive'                  => $database->isRecursive()];
-         $this->check(-1, UPDATE, $input);
-      }
+    if ($ID > 0) {
+        $this->check($ID, READ);
+    } else {
+        $database = new PluginDatabasesDatabase();
+        $database->getFromDB($plugin_databases_databases_id);
+        // Create item
+        $input = [
+            'plugin_databases_databases_id' => $plugin_databases_databases_id,
+            'entities_id' => $database->getEntityID(),
+            'is_recursive' => $database->isRecursive()
+        ];
+        $this->check(-1, UPDATE, $input);
+    }
 
-      $this->showFormHeader($options);
+    // Form init
+    $this->initForm($ID, $options);
 
-      echo "<input type='hidden' name='plugin_databases_databases_id' value='$plugin_databases_databases_id'>";
-      echo "<input type='hidden' name='entities_id' value='" . $this->fields["entities_id"] . "'>";
-      echo "<input type='hidden' name='is_recursive' value='" . $this->fields["is_recursive"] . "'>";
+    $form = [
+        'action' => $this->getFormURL(),
+        'itemtype' => $this::class,
+        'content' => [
+            __('Instance Information', 'databases') => [
+                'visible' => true,
+                'inputs' => [
+                    __('Name') => [
+                        'name' => 'name',
+                        'type' => 'text',
+                        'value' => $this->fields['name'],
+                        'col_lg' => 6
+                    ],
+                    __('Port') => [
+                        'name' => 'port',
+                        'type' => 'text',
+                        'value' => $this->fields['port'],
+                        'col_lg' => 6
+                    ],
+                    __('Path', 'databases') => [
+                        'name' => 'path',
+                        'type' => 'text',
+                        'value' => $this->fields['path'],
+                        'col_lg' => 6
+                    ],
+                    __('Comments') => [
+                        'name' => 'comment',
+                        'type' => 'textarea',
+                        'value' => $this->fields['comment'],
+                        'col_lg' => 12
+                    ]
+                ]
+            ]
+        ]
+    ];
 
-      echo "<tr class='tab_bg_1'>";
 
-      echo "<td>" . __('Name') . "</td>";
-      echo "<td>";
-      Html::autocompletionTextField($this, "name");
-      echo "</td>";
+    $additionalHtml = '';
+    $additionalHtml .= '<input type="hidden" name="plugin_databases_databases_id" value="' . $plugin_databases_databases_id . '">';
+    $additionalHtml .= '<input type="hidden" name="entities_id" value="' . $this->fields["entities_id"] . '">';
+    $additionalHtml .= '<input type="hidden" name="is_recursive" value="' . $this->fields["is_recursive"] . '">';
 
-      echo "<td>" . __('Port') . "</td>";
-      echo "<td>";
-      Html::autocompletionTextField($this, "port");
-      echo "</td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td>" . __('Path', 'databases') . "</td>";
-      echo "<td>";
-      Html::autocompletionTextField($this, "path");
-      echo "</td>";
-
-      echo "<td></td>";
-      echo "<td></td>";
-
-      echo "</tr>";
-
-      echo "<tr class='tab_bg_1'>";
-
-      echo "<td colspan = '4'>";
-      echo "<table cellpadding='2' cellspacing='2' border='0'><tr><td>";
-      echo __('Comments') . "</td></tr>";
-      echo "<tr>";
-      echo "<td class='center'>";
-      echo "<textarea cols='125' rows='3' name='comment'>" . $this->fields["comment"] . "</textarea>";
-      echo "</td></tr></table>";
-      echo "</td>";
-
-      echo "</tr>";
-
-      $options['candel'] = false;
-      $this->showFormButtons($options);
+    $options['candel'] = false;
+    
+    renderTwigForm($form, $additionalHtml, $this->fields);
 
       return true;
    }

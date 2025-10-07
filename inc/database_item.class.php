@@ -233,167 +233,197 @@ class PluginDatabasesDatabase_Item extends CommonDBRelation {
     *
     * @return nothing (HTML display)
     **/
-   public static function showForDatabase(PluginDatabasesDatabase $database) {
-      global $DB;
+   public static function showForDatabase(PluginDatabasesDatabase $database)
+{
+    global $DB;
 
-      $instID = $database->fields['id'];
-      if (!$database->can($instID, READ)) {
-         return false;
-      }
+    $instID = $database->fields['id'];
+    if (!$database->can($instID, READ)) {
+        return false;
+    }
 
-      $rand = mt_rand();
-      $dbu  = new DbUtils();
+    $rand = mt_rand();
+    $dbu = new DbUtils();
+    $canedit = $database->can($instID, UPDATE);
 
-      $canedit = $database->can($instID, UPDATE);
+    $query = "SELECT DISTINCT `itemtype`
+           FROM `glpi_plugin_databases_databases_items`
+           WHERE `plugin_databases_databases_id` = '$instID'
+           ORDER BY `itemtype`
+           LIMIT " . count(PluginDatabasesDatabase::getTypes(true));
 
-      $query = "SELECT DISTINCT `itemtype`
-             FROM `glpi_plugin_databases_databases_items`
-             WHERE `plugin_databases_databases_id` = '$instID'
-             ORDER BY `itemtype`
-             LIMIT " . count(PluginDatabasesDatabase::getTypes(true));
+    $result = $DB->query($query);
+    $number = $DB->numrows($result);
 
-      $result = $DB->query($query);
-      $number = $DB->numrows($result);
+    $colsup = Session::isMultiEntitiesMode() ? 1 : 0;
 
-      if (Session::isMultiEntitiesMode()) {
-         $colsup = 1;
-      } else {
-         $colsup = 0;
-      }
 
-      if ($canedit) {
-         echo "<div class='firstbloc'>";
-         echo "<form method='post' name='databases_form$rand' id='databases_form$rand'
-         action='" . Toolbox::getItemTypeFormURL("PluginDatabasesDatabase") . "'>";
+    if ($canedit) {
+        $addForm = [
+            'action' => Toolbox::getItemTypeFormURL("PluginDatabasesDatabase"),
+            'buttons' => [
+                [
+                    'type' => 'submit',
+                    'name' => 'additem',
+                    'value' => _sx('button', 'Add'),
+                    'class' => 'btn btn-primary'
+                ]
+            ],
+            'content' => [
+                __('Add an item') => [
+                    'visible' => true,
+                    'inputs' => [
+                        '' => [
+                            'type' => 'hidden',
+                            'name' => 'plugin_databases_databases_id',
+                            'value' => $instID
+                        ]
+                    ]
+                ]
+            ]
+        ];
 
-         echo "<table class='tab_cadre_fixe'>";
-         echo "<tr class='tab_bg_2'><th colspan='" . ($canedit ? (5 + $colsup) : (4 + $colsup)) . "'>" .
-              __('Add an item') . "</th></tr>";
+        $additionalHtml = '<div class="col-12">';
+        ob_start();
+        Dropdown::showSelectItemFromItemtypes([
+            'items_id_name' => 'items_id',
+            'itemtypes' => PluginDatabasesDatabase::getTypes(true),
+            'entity_restrict' => ($database->fields['is_recursive']
+                ? $dbu->getSonsOf('glpi_entities', $database->fields['entities_id'])
+                : $database->fields['entities_id']),
+            'checkright' => true,
+        ]);
+        $additionalHtml .= ob_get_clean();
+        $additionalHtml .= '</div>';
 
-         echo "<tr class='tab_bg_1'><td colspan='" . (3 + $colsup) . "' class='center'>";
-         echo "<input type='hidden' name='plugin_databases_databases_id' value='$instID'>";
-         Dropdown::showSelectItemFromItemtypes(['items_id_name' => 'items_id',
-                                                'itemtypes'     => PluginDatabasesDatabase::getTypes(true),
-                                                'entity_restrict'
-                                                                => ($database->fields['is_recursive']
-                                                   ? $dbu->getSonsOf('glpi_entities',
-                                                               $database->fields['entities_id'])
-                                                   : $database->fields['entities_id']),
-                                                'checkright'
-                                                                => true,
-                                               ]);
-         echo "</td>";
-         echo "<td colspan='2' class='tab_bg_2'>";
-         echo "<input type='submit' name='additem' value=\"" . _sx('button', 'Add') . "\" class='submit'>";
-         echo "</td></tr>";
-         echo "</table>";
-         Html::closeForm();
-         echo "</div>";
-      }
+        renderTwigForm($addForm, $additionalHtml, $database->fields);
+    }
 
-      echo "<div class='spaced'>";
-      if ($canedit && $number) {
-         Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
-         $massiveactionparams = [];
-         Html::showMassiveActions($massiveactionparams);
-      }
-      echo "<table class='tab_cadre_fixe'>";
-      echo "<tr>";
+    $entries = [];
+    
+    for ($i = 0; $i < $number; $i++) {
+        $itemType = $DB->result($result, $i, "itemtype");
 
-      if ($canedit && $number) {
-         echo "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand) . "</th>";
-      }
-
-      echo "<th>" . __('Type') . "</th>";
-      echo "<th>" . __('Name') . "</th>";
-      if (Session::isMultiEntitiesMode()) {
-         echo "<th>" . __('Entity') . "</th>";
-      }
-      echo "<th>" . __('Serial number') . "</th>";
-      echo "<th>" . __('Inventory number') . "</th>";
-      echo "</tr>";
-
-      for ($i = 0; $i < $number; $i++) {
-         $itemType = $DB->result($result, $i, "itemtype");
-
-         if (!($item = $dbu->getItemForItemtype($itemType))) {
+        if (!($item = $dbu->getItemForItemtype($itemType))) {
             continue;
-         }
+        }
 
-         if ($item->canView()) {
-            $column    = "name";
+        if ($item->canView()) {
+            $column = "name";
             $itemTable = $dbu->getTableForItemType($itemType);
 
             $query = "SELECT `" . $itemTable . "`.*,
                              `glpi_plugin_databases_databases_items`.`id` AS items_id,
                              `glpi_entities`.`id` AS entity "
-                     . " FROM `glpi_plugin_databases_databases_items`, `" . $itemTable
-                     . "` LEFT JOIN `glpi_entities` ON (`glpi_entities`.`id` = `" . $itemTable . "`.`entities_id`) "
-                     . " WHERE `" . $itemTable . "`.`id` = `glpi_plugin_databases_databases_items`.`items_id`
+                    . " FROM `glpi_plugin_databases_databases_items`, `" . $itemTable
+                    . "` LEFT JOIN `glpi_entities` ON (`glpi_entities`.`id` = `" . $itemTable . "`.`entities_id`) "
+                    . " WHERE `" . $itemTable . "`.`id` = `glpi_plugin_databases_databases_items`.`items_id`
                 AND `glpi_plugin_databases_databases_items`.`itemtype` = '$itemType'
                 AND `glpi_plugin_databases_databases_items`.`plugin_databases_databases_id` = '$instID' "
-                     . $dbu->getEntitiesRestrictRequest(" AND ", $itemTable, '', '', $item->maybeRecursive());
+                    . $dbu->getEntitiesRestrictRequest(" AND ", $itemTable, '', '', $item->maybeRecursive());
 
             if ($item->maybeTemplate()) {
-               $query .= " AND `" . $itemTable . "`.`is_template` = '0'";
+                $query .= " AND `" . $itemTable . "`.`is_template` = '0'";
             }
             $query .= " ORDER BY `glpi_entities`.`completename`, `" . $itemTable . "`.`$column`";
 
             if ($result_linked = $DB->query($query)) {
-               if ($DB->numrows($result_linked)) {
+                if ($DB->numrows($result_linked)) {
+                    Session::initNavigateListItems($itemType, PluginDatabasesDatabase::getTypeName(2) . " = " . $database->fields['name']);
 
-                  Session::initNavigateListItems($itemType, PluginDatabasesDatabase::getTypeName(2) . " = " . $database->fields['name']);
+                    while ($data = $DB->fetchAssoc($result_linked)) {
+                        $item->getFromDB($data["id"]);
+                        Session::addToNavigateListItems($itemType, $data["id"]);
 
-                  while ($data = $DB->fetchAssoc($result_linked)) {
+                        $ID = "";
+                        if ($_SESSION["glpiis_ids_visible"] || empty($data["name"])) {
+                            $ID = " (" . $data["id"] . ")";
+                        }
 
-                     $item->getFromDB($data["id"]);
+                        $link = Toolbox::getItemTypeFormURL($itemType);
+                        $name = "<a href=\"" . $link . "?id=" . $data["id"] . "\">"
+                                . $data["name"] . "$ID</a>";
 
-                     Session::addToNavigateListItems($itemType, $data["id"]);
+                        $entry = [
+                            'itemtype' => $itemType,
+                            'items_id' => $data["items_id"],
+                            'id' => $data["id"],
+                            'type_name' => $item::getTypeName(1),
+                            'name' => $name,
+                            'entity' => Session::isMultiEntitiesMode() ? Dropdown::getDropdownName("glpi_entities", $data['entity']) : '',
+                            'serial' => isset($data["serial"]) ? $data["serial"] : "-",
+                            'otherserial' => isset($data["otherserial"]) ? $data["otherserial"] : "-",
+                            'is_deleted' => isset($data['is_deleted']) ? $data['is_deleted'] : 0
+                        ];
 
-                     $ID = "";
-
-                     if ($_SESSION["glpiis_ids_visible"] || empty($data["name"])) {
-                        $ID = " (" . $data["id"] . ")";
-                     }
-
-                     $link = Toolbox::getItemTypeFormURL($itemType);
-                     $name = "<a href=\"" . $link . "?id=" . $data["id"] . "\">"
-                             . $data["name"] . "$ID</a>";
-
-                     echo "<tr class='tab_bg_1'>";
-
-                     if ($canedit) {
-                        echo "<td width='10'>";
-                        Html::showMassiveActionCheckBox(__CLASS__, $data["items_id"]);
-                        echo "</td>";
-                     }
-                     echo "<td class='center'>" . $item::getTypeName(1) . "</td>";
-
-                     echo "<td class='center' " . (isset($data['is_deleted']) && $data['is_deleted'] ? "class='tab_bg_2_2'" : "") .
-                          ">" . $name . "</td>";
-
-                     if (Session::isMultiEntitiesMode()) {
-                        echo "<td class='center'>" . Dropdown::getDropdownName("glpi_entities", $data['entity']) . "</td>";
-                     }
-
-                     echo "<td class='center'>" . (isset($data["serial"]) ? "" . $data["serial"] . "" : "-") . "</td>";
-                     echo "<td class='center'>" . (isset($data["otherserial"]) ? "" . $data["otherserial"] . "" : "-") . "</td>";
-
-                     echo "</tr>";
-                  }
-               }
+                        $entries[] = $entry;
+                    }
+                }
             }
-         }
-      }
-      echo "</table>";
+        }
+    }
 
-      if ($canedit && $number) {
-         $paramsma['ontop'] = false;
-         Html::showMassiveActions($paramsma);
-         Html::closeForm();
-      }
-      echo "</div>";
-   }
+    // Construction du tableau avec les données
+    if ($canedit && $number) {
+        echo "<div class='spaced'>";
+        Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+        $massiveactionparams = [];
+        Html::showMassiveActions($massiveactionparams);
+    } else {
+        echo "<div class='spaced'>";
+    }
+
+    echo "<table class='table table-hover table-striped'>";
+    echo "<thead><tr>";
+
+    if ($canedit && $number) {
+        echo "<th style='width: 10px'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand) . "</th>";
+    }
+
+    echo "<th>" . __('Type') . "</th>";
+    echo "<th>" . __('Name') . "</th>";
+    
+    if (Session::isMultiEntitiesMode()) {
+        echo "<th>" . __('Entity') . "</th>";
+    }
+    
+    echo "<th>" . __('Serial number') . "</th>";
+    echo "<th>" . __('Inventory number') . "</th>";
+    echo "</tr></thead>";
+    echo "<tbody>";
+
+    foreach ($entries as $entry) {
+        $rowClass = $entry['is_deleted'] ? 'table-danger' : '';
+        echo "<tr class='$rowClass'>";
+
+        if ($canedit && $number) {
+            echo "<td style='width: 10px'>";
+            Html::showMassiveActionCheckBox(__CLASS__, $entry["items_id"]);
+            echo "</td>";
+        }
+
+        echo "<td class='center'>" . $entry['type_name'] . "</td>";
+        echo "<td class='center'>" . $entry['name'] . "</td>";
+
+        if (Session::isMultiEntitiesMode()) {
+            echo "<td class='center'>" . $entry['entity'] . "</td>";
+        }
+
+        echo "<td class='center'>" . $entry['serial'] . "</td>";
+        echo "<td class='center'>" . $entry['otherserial'] . "</td>";
+        echo "</tr>";
+    }
+
+    echo "</tbody></table>";
+
+    if ($canedit && $number) {
+        $paramsma['ontop'] = false;
+        Html::showMassiveActions($paramsma);
+        Html::closeForm();
+    }
+
+    echo "</div>";
+}
 
    /**
     * Show databases associated to an item
