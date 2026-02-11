@@ -477,7 +477,6 @@ class PluginDatabasesDatabase_Item extends CommonDBRelation {
 
       $result = $DB->query($query);
       $number = $DB->numrows($result);
-      $i      = 0;
 
       $databases = [];
       $database  = new PluginDatabasesDatabase();
@@ -490,93 +489,86 @@ class PluginDatabasesDatabase_Item extends CommonDBRelation {
       }
 
       if ($canedit && $withtemplate < 2) {
-         // Restrict entity for knowbase
-         $entities = "";
-         $entity   = $_SESSION["glpiactive_entity"];
+         $entity = $_SESSION["glpiactive_entity"];
 
          if ($item->isEntityAssign()) {
-            /// Case of personal items : entity = -1 : create on active entity (Reminder case))
             if ($item->getEntityID() >= 0) {
                $entity = $item->getEntityID();
             }
-
-            if ($item->isRecursive()) {
-               $entities = $dbu->getSonsOf('glpi_entities', $entity);
-            } else {
-               $entities = $entity;
-            }
          }
-         $limit = $dbu->getEntitiesRestrictRequest(" AND ", "glpi_plugin_databases_databases", '', $entities, true);
-         $q     = "SELECT COUNT(*)
-               FROM `glpi_plugin_databases_databases`
-               WHERE `is_deleted` = '0'
-               $limit";
 
-         $result = $DB->query($q);
-         $nb     = $DB->result($result, 0, 0);
-
-         echo "<div class='firstbloc'>";
+         $nb = $dbu->countElementsInTable('glpi_plugin_databases_databases', [
+            'is_deleted' => 0,
+         ] + $dbu->getEntitiesRestrictCriteria('glpi_plugin_databases_databases', '', $entity, true));
 
          if (Session::haveRight('plugin_databases', READ)
              && ($nb > count($used))
          ) {
-            echo "<form name='database_form$rand' id='database_form$rand' method='post'
-                   action='" . Toolbox::getItemTypeFormURL('PluginDatabasesDatabase') . "'>";
-            echo "<table class='tab_cadre_fixe'>";
-            echo "<tr class='tab_bg_1'>";
-            echo "<td colspan='4' class='center'>";
-            echo "<input type='hidden' name='entities_id' value='$entity'>";
-            echo "<input type='hidden' name='is_recursive' value='$is_recursive'>";
-            echo "<input type='hidden' name='itemtype' value='" . $item->getType() . "'>";
-            echo "<input type='hidden' name='items_id' value='$ID'>";
+            $addForm = [
+               'action' => Toolbox::getItemTypeFormURL('PluginDatabasesDatabase'),
+               'buttons' => [
+                  [
+                     'type'  => 'submit',
+                     'name'  => 'additem',
+                     'value' => _sx('button', 'Associate a database', 'databases'),
+                     'class' => 'btn btn-primary',
+                  ]
+               ],
+               'content' => [
+                  _sx('button', 'Associate a database', 'databases') => [
+                     'visible' => true,
+                     'inputs' => [
+                        '' => [
+                           'type'  => 'hidden',
+                           'name'  => 'entities_id',
+                           'value' => $entity,
+                        ],
+                        ' ' => [
+                           'type'  => 'hidden',
+                           'name'  => 'is_recursive',
+                           'value' => $is_recursive,
+                        ],
+                        '  ' => [
+                           'type'  => 'hidden',
+                           'name'  => 'itemtype',
+                           'value' => $item->getType(),
+                        ],
+                        '   ' => [
+                           'type'  => 'hidden',
+                           'name'  => 'items_id',
+                           'value' => $ID,
+                        ],
+                        PluginDatabasesDatabase::getTypeName(1) => [
+                           'type'      => 'select',
+                           'name'      => 'plugin_databases_databases_id',
+                           'itemtype'  => PluginDatabasesDatabase::class,
+                           'used'      => $used,
+                           'condition' => ['entities_id' => $entity],
+                           'value'     => '',
+                           'actions'   => getItemActionButtons(['info'], 'PluginDatabasesDatabase'),
+                        ],
+                     ],
+                  ],
+               ],
+            ];
+
             if ($item->getType() == 'Ticket') {
-               echo "<input type='hidden' name='tickets_id' value='$ID'>";
+               $addForm['content'][_sx('button', 'Associate a database', 'databases')]['inputs']['    '] = [
+                  'type'  => 'hidden',
+                  'name'  => 'tickets_id',
+                  'value' => $ID,
+               ];
             }
 
-            PluginDatabasesDatabase::dropdownDatabase(['entity' => $entities,
-                                                       'used'   => $used]);
-
-            echo "</td><td class='center' width='20%'>";
-            echo "<input type='submit' name='additem' value=\"" .
-                 _sx('button', 'Associate a database', 'databases') . "\" class='submit'>";
-            echo "</td>";
-            echo "</tr>";
-            echo "</table>";
-            Html::closeForm();
+            renderTwigForm($addForm, '', $item->fields);
          }
-
-         echo "</div>";
       }
 
-      echo "<div class='spaced'>";
-      if ($canedit && $number && ($withtemplate < 2)) {
-         Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
-         $massiveactionparams = ['num_displayed' => $number];
-         Html::showMassiveActions($massiveactionparams);
-      }
-      echo "<table class='tab_cadre_fixe'>";
-
-      echo "<tr>";
-      if ($canedit && $number && ($withtemplate < 2)) {
-         echo "<th width='10'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand) . "</th>";
-      }
-      echo "<th>" . __('Name') . "</th>";
-      if (Session::isMultiEntitiesMode()) {
-         echo "<th>" . __('Entity') . "</th>";
-      }
-      echo "<th>" . PluginDatabasesServerType::getTypeName(1) . "</th>";
-      echo "<th>" . PluginDatabasesDatabaseCategory::getTypeName(1) . "</th>";
-      echo "<th>" . PluginDatabasesDatabaseType::getTypeName(1) . "</th>";
-      echo "<th>" . __('Supplier') . "</th>";
-      echo "<th>" . __('Editor', 'databases') . "</th>";
-      echo "</tr>";
+      $entries = [];
       $used = [];
 
       if ($number) {
-
          Session::initNavigateListItems('PluginDatabasesDatabase',
-            //TRANS : %1$s is the itemtype name,
-            //        %2$s is the name of the item (used for headings of a list)
                                         sprintf(__('%1$s = %2$s'),
                                                 $item->getTypeName(1), $item->getName()));
 
@@ -589,37 +581,81 @@ class PluginDatabasesDatabase_Item extends CommonDBRelation {
             }
 
             Session::addToNavigateListItems('PluginDatabasesDatabase', $databaseID);
-
             $used[$databaseID] = $databaseID;
 
-            echo "<tr class='tab_bg_1" . ($data["is_deleted"] ? "_2" : "") . "'>";
-            if ($canedit && ($withtemplate < 2)) {
-               echo "<td width='10'>";
-               Html::showMassiveActionCheckBox(__CLASS__, $data["assocID"]);
-               echo "</td>";
-            }
-            echo "<td class='center'>$link</td>";
-            if (Session::isMultiEntitiesMode()) {
-               echo "<td class='center'>" . Dropdown::getDropdownName("glpi_entities", $data['entities_id']) .
-                    "</td>";
-            }
-            echo "<td>" . Dropdown::getDropdownName("glpi_plugin_databases_servertypes", $data["plugin_databases_servertypes_id"]) . "</td>";
-            echo "<td>" . Dropdown::getDropdownName("glpi_plugin_databases_databasecategories", $data["plugin_databases_databasecategories_id"]) . "</td>";
-            echo "<td>" . Dropdown::getDropdownName("glpi_plugin_databases_databasetypes", $data["plugin_databases_databasetypes_id"]) . "</td>";
-            echo "<td>" . Dropdown::getDropdownName("glpi_manufacturers", $data["manufacturers_id"]) . "</td>";
-            echo "<td>";
-            echo "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/supplier.form.php?id=" . $data["suppliers_id"] . "\">";
-            echo Dropdown::getDropdownName("glpi_suppliers", $data["suppliers_id"]);
+            $supplierName = Dropdown::getDropdownName("glpi_suppliers", $data["suppliers_id"]);
             if ($_SESSION["glpiis_ids_visible"] == 1) {
-               echo " (" . $data["suppliers_id"] . ")";
+               $supplierName .= " (" . $data["suppliers_id"] . ")";
             }
-            echo "</a></td>";
-            echo "</tr>";
-            $i++;
+            $supplierLink = "<a href=\"" . $CFG_GLPI["root_doc"] . "/front/supplier.form.php?id=" .
+                            $data["suppliers_id"] . "\">" . $supplierName . "</a>";
+
+            $entries[] = [
+               'assocID'    => $data['assocID'],
+               'name'       => $link,
+               'entity'     => Session::isMultiEntitiesMode()
+                  ? Dropdown::getDropdownName("glpi_entities", $data['entities_id']) : '',
+               'servertype' => Dropdown::getDropdownName("glpi_plugin_databases_servertypes", $data["plugin_databases_servertypes_id"]),
+               'category'   => Dropdown::getDropdownName("glpi_plugin_databases_databasecategories", $data["plugin_databases_databasecategories_id"]),
+               'type'       => Dropdown::getDropdownName("glpi_plugin_databases_databasetypes", $data["plugin_databases_databasetypes_id"]),
+               'supplier'   => $supplierLink,
+               'editor'     => Dropdown::getDropdownName("glpi_manufacturers", $data["manufacturers_id"]),
+               'is_deleted' => $data["is_deleted"],
+            ];
          }
       }
 
-      echo "</table>";
+      if ($canedit && $number && ($withtemplate < 2)) {
+         echo "<div class='spaced'>";
+         Html::openMassiveActionsForm('mass' . __CLASS__ . $rand);
+         $massiveactionparams = ['num_displayed' => $number];
+         Html::showMassiveActions($massiveactionparams);
+      } else {
+         echo "<div class='spaced'>";
+      }
+
+      echo "<table class='table table-hover table-striped'>";
+      echo "<thead><tr>";
+
+      if ($canedit && $number && ($withtemplate < 2)) {
+         echo "<th style='width: 10px'>" . Html::getCheckAllAsCheckbox('mass' . __CLASS__ . $rand) . "</th>";
+      }
+      echo "<th>" . __('Name') . "</th>";
+      if (Session::isMultiEntitiesMode()) {
+         echo "<th>" . __('Entity') . "</th>";
+      }
+      echo "<th>" . PluginDatabasesServerType::getTypeName(1) . "</th>";
+      echo "<th>" . PluginDatabasesDatabaseCategory::getTypeName(1) . "</th>";
+      echo "<th>" . PluginDatabasesDatabaseType::getTypeName(1) . "</th>";
+      echo "<th>" . __('Supplier') . "</th>";
+      echo "<th>" . __('Editor', 'databases') . "</th>";
+      echo "</tr></thead>";
+      echo "<tbody>";
+
+      foreach ($entries as $entry) {
+         $rowClass = $entry['is_deleted'] ? 'table-danger' : '';
+         echo "<tr class='$rowClass'>";
+
+         if ($canedit && $number && ($withtemplate < 2)) {
+            echo "<td style='width: 10px'>";
+            Html::showMassiveActionCheckBox(__CLASS__, $entry["assocID"]);
+            echo "</td>";
+         }
+
+         echo "<td class='center'>" . $entry['name'] . "</td>";
+         if (Session::isMultiEntitiesMode()) {
+            echo "<td class='center'>" . $entry['entity'] . "</td>";
+         }
+         echo "<td class='center'>" . $entry['servertype'] . "</td>";
+         echo "<td class='center'>" . $entry['category'] . "</td>";
+         echo "<td class='center'>" . $entry['type'] . "</td>";
+         echo "<td class='center'>" . $entry['supplier'] . "</td>";
+         echo "<td class='center'>" . $entry['editor'] . "</td>";
+         echo "</tr>";
+      }
+
+      echo "</tbody></table>";
+
       if ($canedit && $number && ($withtemplate < 2)) {
          $massiveactionparams['ontop'] = false;
          Html::showMassiveActions($massiveactionparams);
