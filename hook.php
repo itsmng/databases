@@ -607,8 +607,8 @@ function plugin_databases_MassiveActions($type) {
    $plugin = new Plugin();
    if ($plugin->isActivated('databases')) {
       if (in_array($type, PluginDatabasesDatabase::getTypes(true))) {
-         return ['PluginDatabasesDatabase' . MassiveAction::CLASS_ACTION_SEPARATOR . 'plugin_databases__add_item' =>
-                    __('Associate to the database', 'databases')];
+         return ['PluginDatabasesDatabase' . MassiveAction::CLASS_ACTION_SEPARATOR . 'plugin_databases_add_item' =>
+                     __('Associate to the database', 'databases')];
       }
    }
    return [];

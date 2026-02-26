@@ -81,7 +81,9 @@ class PluginDatabasesDatabase extends CommonDBTM {
 
       if ($item->getType() == 'Supplier') {
          $self = new self();
-         $self->showPluginFromSupplier($item->getField('id'));
+         if ($item instanceof CommonDBTM) {
+            $self->showPluginFromSupplier($item->getID());
+         }
       }
       return true;
    }
@@ -651,9 +653,27 @@ public function showForm($ID, $options = [])
 
       switch ($ma->getAction()) {
          case 'plugin_databases_add_item':
-            self::dropdownDatabase([]);
-            echo "&nbsp;" .
-                 Html::submit(_x('button', 'Post'), ['name' => 'massiveaction']);
+            $input = [
+               'type'     => 'select',
+               'name'     => 'plugin_databases_databases_id',
+               'itemtype' => PluginDatabasesDatabase::class,
+               'value'    => '',
+               'condition' => [
+                  'is_deleted' => 0,
+                  'entities_id' => Session::getActiveEntity(),
+                  'is_recursive' => Session::getIsActiveEntityRecursive(),
+               ],
+               'actions'  => getItemActionButtons(['info'], PluginDatabasesDatabase::class),
+            ];
+            expandSelect($input, [
+               'entities_id' => Session::getActiveEntity(),
+               'is_recursive' => Session::getIsActiveEntityRecursive(),
+            ]);
+            renderTwigTemplate('macros/wrappedInput.twig', [
+               'title' => PluginDatabasesDatabase::getTypeName(1),
+               'input' => $input,
+            ]);
+            echo Html::submit(_x('button', 'Post'), ['name' => 'massiveaction', 'class' => 'btn btn-secondary']);
             return true;
             break;
          case "install" :
@@ -705,18 +725,28 @@ public function showForm($ID, $options = [])
       switch ($ma->getAction()) {
          case "plugin_databases_add_item":
             $input = $ma->getInput();
+            $database_id = isset($input['plugin_databases_databases_id'])
+               ? (int) $input['plugin_databases_databases_id']
+               : 0;
+            if ($database_id <= 0) {
+               foreach ($ids as $id) {
+                  $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
+               }
+               $ma->addMessage(__('No database selected', 'databases'));
+               return;
+            }
             foreach ($ids as $id) {
-               $input = ['plugin_databases_databasetypes_id' => $input['plugin_databases_databasetypes_id'],
-                         'items_id'                          => $id,
-                         'itemtype'                          => $item->getType()];
-               if ($database_item->can(-1, UPDATE, $input)) {
-                  if ($database_item->add($input)) {
+               $values = ['plugin_databases_databases_id' => $database_id,
+                          'items_id'                      => $id,
+                          'itemtype'                      => $item->getType()];
+               if ($database_item->can(-1, UPDATE, $values)) {
+                  if ($database_item->add($values)) {
                      $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_OK);
                   } else {
-                     $ma->itemDone($item->getType(), $ids, MassiveAction::ACTION_KO);
+                     $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
                   }
                } else {
-                  $ma->itemDone($item->getType(), $ids, MassiveAction::ACTION_KO);
+                  $ma->itemDone($item->getType(), $id, MassiveAction::ACTION_KO);
                }
             }
 
