@@ -104,7 +104,7 @@ function plugin_version_databases() {
       'author'       => "<a href='http://blogglpi.infotel.com'>Infotel</a>",
       'oldname'      => 'sgbd',
       'license'      => 'GPLv2+',
-      'homepage'     => 'https://github.com/InfotelGLPI/databases',
+      'homepage'     => 'https://github.com/itsmng/databases',
       'requirements' => [
          'glpi' => [
             'min' => '9.5',
