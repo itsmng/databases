@@ -27,7 +27,7 @@
  --------------------------------------------------------------------------
  */
 
-define('PLUGIN_DATABASES_VERSION', '3.0');
+define('PLUGIN_DATABASES_VERSION', '3.0.1');
 
 if (!defined("PLUGIN_DATABASES_DIR")) {
    define("PLUGIN_DATABASES_DIR", Plugin::getPhpDir("databases"));
